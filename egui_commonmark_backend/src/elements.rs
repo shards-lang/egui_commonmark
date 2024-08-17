@@ -87,41 +87,9 @@ fn width_body_space(ui: &Ui) -> f32 {
 }
 
 /// Enhanced/specialized version of egui's code blocks. This one features copy button and borders
-pub fn code_block<'t>(
-    ui: &mut Ui,
-    max_width: f32,
-    text: &str,
-    layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> std::sync::Arc<egui::Galley>,
-) {
-    let mut text = text.strip_suffix('\n').unwrap_or(text);
+pub type ButtonDrawFn = fn(&mut Ui, &egui::Rect, &egui::text_edit::TextEditOutput, &str);
 
-    // To manually add background color to the code block, we imitate what
-    // TextEdit does internally
-    let where_to_put_background = ui.painter().add(egui::Shape::Noop);
-
-    // We use a `TextEdit` to make the text selectable.
-    // Note that we take a `&mut` to a non-`mut` `&str`, which is
-    // the how to tell `egui` that the text is not editable.
-    let output = egui::TextEdit::multiline(&mut text)
-        .layouter(layouter)
-        .desired_width(max_width)
-        // prevent trailing lines
-        .desired_rows(1)
-        .show(ui);
-
-    // Background color + frame (This is lost when TextEdit it not editable)
-    let frame_rect = output.response.rect;
-    ui.painter().set(
-        where_to_put_background,
-        epaint::RectShape::new(
-            frame_rect,
-            ui.style().noninteractive().rounding,
-            ui.visuals().extreme_bg_color,
-            ui.visuals().widgets.noninteractive.bg_stroke,
-        ),
-    );
-
-    // Copy icon
+pub fn draw_copy_button(ui: &mut Ui, frame_rect: &egui::Rect, output: &egui::text_edit::TextEditOutput, text: &str) {
     let spacing = &ui.style().spacing;
     let position = egui::pos2(
         frame_rect.right_top().x - spacing.icon_width * 0.5 - spacing.button_padding.x,
@@ -174,6 +142,47 @@ pub fn code_block<'t>(
             text.to_owned()
         };
         ui.ctx().copy_text(copy_text);
+    }
+}
+
+pub fn code_block<'t>(
+    ui: &mut Ui,
+    max_width: f32,
+    text: &str,
+    layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> std::sync::Arc<egui::Galley>,
+    custom_buttons: &Vec<ButtonDrawFn>,
+) {
+    let mut text = text.strip_suffix('\n').unwrap_or(text);
+
+    // To manually add background color to the code block, we imitate what
+    // TextEdit does internally
+    let where_to_put_background = ui.painter().add(egui::Shape::Noop);
+
+    // We use a `TextEdit` to make the text selectable.
+    // Note that we take a `&mut` to a non-`mut` `&str`, which is
+    // the how to tell `egui` that the text is not editable.
+    let output = egui::TextEdit::multiline(&mut text)
+        .layouter(layouter)
+        .desired_width(max_width)
+        // prevent trailing lines
+        .desired_rows(1)
+        .show(ui);
+
+    // Background color + frame (This is lost when TextEdit it not editable)
+    let frame_rect = output.response.rect;
+    ui.painter().set(
+        where_to_put_background,
+        epaint::RectShape::new(
+            frame_rect,
+            ui.style().noninteractive().rounding,
+            ui.visuals().extreme_bg_color,
+            ui.visuals().widgets.noninteractive.bg_stroke,
+        ),
+    );
+
+    // Draw custom buttons
+    for draw_button in custom_buttons {
+        draw_button(ui, &frame_rect, &output, text);
     }
 }
 

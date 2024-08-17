@@ -86,13 +86,16 @@ pub use egui_commonmark_backend;
 
 use egui_commonmark_backend::*;
 
+#[cfg(feature = "better_syntax_highlighting")]
+use std::borrow::Cow;
+
 #[derive(Debug)]
-pub struct CommonMarkViewer {
+pub struct CommonMarkViewer<'a> {
     source_id: Id,
-    options: CommonMarkOptions,
+    options: CommonMarkOptions<'a>,
 }
 
-impl CommonMarkViewer {
+impl<'a> CommonMarkViewer<'a> {
     pub fn new(source_id: impl std::hash::Hash) -> Self {
         Self {
             source_id: Id::new(source_id),
@@ -135,7 +138,7 @@ impl CommonMarkViewer {
     /// # use egui_commonmark::CommonMarkViewer;
     /// CommonMarkViewer::new("viewer").default_implicit_uri_scheme("https://example.org/");
     /// ```
-    pub fn default_implicit_uri_scheme<S: Into<String>>(mut self, scheme: S) -> Self {
+    pub fn default_implicit_uri_scheme<S: Into<Cow<'static, str>>>(mut self, scheme: S) -> Self {
         self.options.default_implicit_uri_scheme = scheme.into();
         self
     }
@@ -151,14 +154,14 @@ impl CommonMarkViewer {
 
     #[cfg(feature = "better_syntax_highlighting")]
     /// Set the syntax theme to be used inside code blocks in light mode
-    pub fn syntax_theme_light<S: Into<String>>(mut self, theme: S) -> Self {
+    pub fn syntax_theme_light<S: Into<Cow<'static, str>>>(mut self, theme: S) -> Self {
         self.options.theme_light = theme.into();
         self
     }
 
     #[cfg(feature = "better_syntax_highlighting")]
     /// Set the syntax theme to be used inside code blocks in dark mode
-    pub fn syntax_theme_dark<S: Into<String>>(mut self, theme: S) -> Self {
+    pub fn syntax_theme_dark<S: Into<Cow<'static, str>>>(mut self, theme: S) -> Self {
         self.options.theme_dark = theme.into();
         self
     }
@@ -167,8 +170,13 @@ impl CommonMarkViewer {
     ///
     /// By default [github flavoured markdown style alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
     /// are used
-    pub fn alerts(mut self, alerts: AlertBundle) -> Self {
+    pub fn alerts(mut self, alerts: &'a AlertBundle) -> Self {
         self.options.alerts = alerts;
+        self
+    }
+
+    pub fn code_block_buttons(mut self, buttons: &'a Vec<ButtonDrawFn>) -> Self {
+        self.options.custom_buttons = buttons;
         self
     }
 

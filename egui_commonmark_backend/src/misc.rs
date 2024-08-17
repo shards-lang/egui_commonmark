@@ -1,8 +1,11 @@
-use crate::alerts::AlertBundle;
+use crate::{alerts::AlertBundle, draw_copy_button, ButtonDrawFn};
 use egui::{text::LayoutJob, RichText, TextStyle, Ui};
 use std::collections::HashMap;
 
 use crate::pulldown::ScrollableCache;
+
+use lazy_static::lazy_static;
+use std::borrow::Cow;
 
 #[cfg(feature = "better_syntax_highlighting")]
 use syntect::{
@@ -18,23 +21,30 @@ const DEFAULT_THEME_LIGHT: &str = "base16-ocean.light";
 const DEFAULT_THEME_DARK: &str = "base16-ocean.dark";
 
 #[derive(Debug)]
-pub struct CommonMarkOptions {
+pub struct CommonMarkOptions<'a> {
     pub indentation_spaces: usize,
     pub max_image_width: Option<usize>,
     pub show_alt_text_on_hover: bool,
     pub default_width: Option<usize>,
     #[cfg(feature = "better_syntax_highlighting")]
-    pub theme_light: String,
+    pub theme_light: Cow<'static, str>,
     #[cfg(feature = "better_syntax_highlighting")]
-    pub theme_dark: String,
+    pub theme_dark: Cow<'static, str>,
     pub use_explicit_uri_scheme: bool,
-    pub default_implicit_uri_scheme: String,
-    pub alerts: AlertBundle,
+    pub default_implicit_uri_scheme: Cow<'static, str>,
+    pub alerts: &'a AlertBundle,
     /// Whether to present a mutable ui for things like checkboxes
     pub mutable: bool,
+    /// Custom buttons to be added to code blocks
+    pub custom_buttons: &'a Vec<ButtonDrawFn>,
 }
 
-impl Default for CommonMarkOptions {
+lazy_static! {
+    static ref DEFAULT_ALERTS: AlertBundle = AlertBundle::gfm();
+    static ref DEFAULT_CUSTOM_BUTTONS: Vec<ButtonDrawFn> = vec![draw_copy_button];
+}
+
+impl<'a> Default for CommonMarkOptions<'a> {
     fn default() -> Self {
         Self {
             indentation_spaces: 4,
@@ -42,18 +52,19 @@ impl Default for CommonMarkOptions {
             show_alt_text_on_hover: true,
             default_width: None,
             #[cfg(feature = "better_syntax_highlighting")]
-            theme_light: DEFAULT_THEME_LIGHT.to_owned(),
+            theme_light: DEFAULT_THEME_LIGHT.into(),
             #[cfg(feature = "better_syntax_highlighting")]
-            theme_dark: DEFAULT_THEME_DARK.to_owned(),
+            theme_dark: DEFAULT_THEME_DARK.into(),
             use_explicit_uri_scheme: false,
-            default_implicit_uri_scheme: "file://".to_owned(),
-            alerts: AlertBundle::gfm(),
+            default_implicit_uri_scheme: "file://".into(),
+            alerts: &*DEFAULT_ALERTS,
             mutable: false,
+            custom_buttons: &*DEFAULT_CUSTOM_BUTTONS,
         }
     }
 }
 
-impl CommonMarkOptions {
+impl<'a> CommonMarkOptions<'a> {
     #[cfg(feature = "better_syntax_highlighting")]
     pub fn curr_theme(&self, ui: &Ui) -> &str {
         if ui.style().visuals.dark_mode {
@@ -251,7 +262,13 @@ impl FencedCodeBlock {
                 ui.fonts(|f| f.layout_job(job))
             };
 
-            crate::elements::code_block(ui, max_width, &self.content, &mut layout);
+            crate::elements::code_block(
+                ui,
+                max_width,
+                &self.content,
+                &mut layout,
+                &options.custom_buttons,
+            );
         });
     }
 }
