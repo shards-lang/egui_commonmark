@@ -41,7 +41,7 @@ pub struct CommonMarkOptions<'a> {
 
 lazy_static! {
     static ref DEFAULT_ALERTS: AlertBundle = AlertBundle::gfm();
-    static ref DEFAULT_CUSTOM_BUTTONS: Vec<ButtonDrawFn> = vec![draw_copy_button];
+    static ref DEFAULT_CUSTOM_BUTTONS: Vec<ButtonDrawFn> = vec![ButtonDrawFn::Static(draw_copy_button)];
 }
 
 impl<'a> Default for CommonMarkOptions<'a> {

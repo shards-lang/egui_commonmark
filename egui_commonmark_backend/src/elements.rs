@@ -87,7 +87,28 @@ fn width_body_space(ui: &Ui) -> f32 {
 }
 
 /// Enhanced/specialized version of egui's code blocks. This one features copy button and borders
-pub type ButtonDrawFn = fn(&mut Ui, &egui::Rect, &egui::text_edit::TextEditOutput, &str);
+pub enum ButtonDrawFn {
+    Static(fn(&mut Ui, &egui::Rect, &egui::text_edit::TextEditOutput, &str)),
+    Dynamic(Box<dyn Fn(&mut Ui, &egui::Rect, &egui::text_edit::TextEditOutput, &str)>),
+}
+
+impl std::fmt::Debug for ButtonDrawFn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ButtonDrawFn")
+    }
+}
+
+unsafe impl Send for ButtonDrawFn {}
+unsafe impl Sync for ButtonDrawFn {}
+
+impl ButtonDrawFn {
+    fn call(&self, ui: &mut Ui, frame_rect: &egui::Rect, output: &egui::text_edit::TextEditOutput, text: &str) {
+        match self {
+            ButtonDrawFn::Static(f) => f(ui, frame_rect, output, text),
+            ButtonDrawFn::Dynamic(f) => f(ui, frame_rect, output, text),
+        }
+    }
+}
 
 pub fn draw_copy_button(ui: &mut Ui, frame_rect: &egui::Rect, output: &egui::text_edit::TextEditOutput, text: &str) {
     let spacing = &ui.style().spacing;
@@ -150,7 +171,7 @@ pub fn code_block<'t>(
     max_width: f32,
     text: &str,
     layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> std::sync::Arc<egui::Galley>,
-    custom_buttons: &Vec<ButtonDrawFn>,
+    custom_buttons: &[ButtonDrawFn],
 ) {
     let mut text = text.strip_suffix('\n').unwrap_or(text);
 
@@ -182,7 +203,7 @@ pub fn code_block<'t>(
 
     // Draw custom buttons
     for draw_button in custom_buttons {
-        draw_button(ui, &frame_rect, &output, text);
+        draw_button.call(ui, &frame_rect, &output, text);
     }
 }
 
