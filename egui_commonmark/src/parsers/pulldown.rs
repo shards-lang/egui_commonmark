@@ -499,6 +499,8 @@ impl CommonMarkViewerInternal {
                 self.is_blockquote = true;
             }
             pulldown_cmark::Tag::CodeBlock(c) => {
+                self.line.should_start_newline = true; // force this
+
                 if let pulldown_cmark::CodeBlockKind::Fenced(lang) = c {
                     self.fenced_code_block = Some(crate::FencedCodeBlock {
                         lang: lang.to_string(),

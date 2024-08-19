@@ -75,6 +75,8 @@ mod parsers;
 
 pub use egui_commonmark_backend::alerts::{Alert, AlertBundle};
 pub use egui_commonmark_backend::misc::CommonMarkCache;
+pub use egui_commonmark_backend::ButtonDrawFn;
+pub use egui_commonmark_backend::draw_copy_button;
 
 #[cfg(feature = "macros")]
 pub use egui_commonmark_macros::*;
@@ -175,6 +177,14 @@ impl<'a> CommonMarkViewer<'a> {
         self
     }
 
+    /// Specify custom buttons to be displayed alongside code blocks.
+    ///
+    /// # Arguments
+    ///
+    /// * `buttons` - A reference to a vector of `ButtonDrawFn` functions that define custom buttons.
+    ///
+    /// This method allows you to add custom buttons to code blocks in the rendered markdown.
+    /// Each `ButtonDrawFn` in the vector will be called to draw a button next to the code block.
     pub fn code_block_buttons(mut self, buttons: &'a Vec<ButtonDrawFn>) -> Self {
         self.options.custom_buttons = buttons;
         self
