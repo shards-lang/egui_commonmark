@@ -88,7 +88,6 @@ pub use egui_commonmark_backend;
 
 use egui_commonmark_backend::*;
 
-#[cfg(feature = "better_syntax_highlighting")]
 use std::borrow::Cow;
 
 #[derive(Debug)]

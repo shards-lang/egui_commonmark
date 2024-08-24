@@ -41,7 +41,8 @@ pub struct CommonMarkOptions<'a> {
 
 lazy_static! {
     static ref DEFAULT_ALERTS: AlertBundle = AlertBundle::gfm();
-    static ref DEFAULT_CUSTOM_BUTTONS: Vec<ButtonDrawFn> = vec![ButtonDrawFn::Static(draw_copy_button)];
+    static ref DEFAULT_CUSTOM_BUTTONS: Vec<ButtonDrawFn> =
+        vec![ButtonDrawFn::Static(draw_copy_button)];
 }
 
 impl<'a> Default for CommonMarkOptions<'a> {
@@ -103,6 +104,7 @@ pub struct Style {
 
 impl Style {
     pub fn to_richtext(&self, ui: &Ui, text: &str) -> RichText {
+        let tag = text.starts_with('#') && !text.contains(' ');
         let mut text = RichText::new(text);
 
         if let Some(level) = self.heading {
@@ -164,7 +166,11 @@ impl Style {
         }
 
         if self.code {
-            text = text.code();
+            if tag {
+                text = text.color(ui.visuals().weak_text_color());
+            } else {
+                text = text.code();
+            }
         }
 
         text
@@ -247,7 +253,7 @@ pub struct FencedCodeBlock {
 
 impl FencedCodeBlock {
     pub fn end(
-        &self,
+        &mut self,
         ui: &mut Ui,
         cache: &mut CommonMarkCache,
         options: &CommonMarkOptions,
@@ -255,6 +261,8 @@ impl FencedCodeBlock {
     ) {
         ui.scope(|ui| {
             Self::pre_syntax_highlighting(cache, options, ui);
+
+            self.content.push('\n');
 
             let mut layout = |ui: &Ui, string: &str, wrap_width: f32| {
                 let mut job = self.syntax_highlighting(cache, options, &self.lang, ui, string);

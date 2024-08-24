@@ -311,7 +311,7 @@ impl CommonMarkViewerInternal {
         ui: &mut Ui,
     ) {
         if self.is_blockquote {
-            let mut collected_events = delayed_events(events, pulldown_cmark::TagEnd::BlockQuote);
+            let mut collected_events = delayed_events(events, pulldown_cmark::TagEnd::BlockQuote(None));
             self.line.try_insert_start(ui);
 
             // Currently the blockquotes are made in such a way that they need a newline at the end
@@ -504,7 +504,7 @@ impl CommonMarkViewerInternal {
                 if let pulldown_cmark::CodeBlockKind::Fenced(lang) = c {
                     self.fenced_code_block = Some(crate::FencedCodeBlock {
                         lang: lang.to_string(),
-                        content: "".to_string(),
+                        content: "\n".to_string(),
                     });
 
                     self.line.try_insert_start(ui);
@@ -564,6 +564,9 @@ impl CommonMarkViewerInternal {
             }
             pulldown_cmark::Tag::HtmlBlock => {}
             pulldown_cmark::Tag::MetadataBlock(_) => {}
+            pulldown_cmark::Tag::DefinitionList => {},
+            pulldown_cmark::Tag::DefinitionListTitle => {},
+            pulldown_cmark::Tag::DefinitionListDefinition => {},
         }
     }
 
@@ -583,7 +586,7 @@ impl CommonMarkViewerInternal {
                 self.line.try_insert_end(ui);
                 self.text_style.heading = None;
             }
-            pulldown_cmark::TagEnd::BlockQuote => {}
+            pulldown_cmark::TagEnd::BlockQuote(_) => {}
             pulldown_cmark::TagEnd::CodeBlock => {
                 self.end_code_block(ui, cache, options, max_width);
             }
@@ -627,6 +630,9 @@ impl CommonMarkViewerInternal {
             }
             pulldown_cmark::TagEnd::HtmlBlock => {}
             pulldown_cmark::TagEnd::MetadataBlock(_) => {}
+            pulldown_cmark::TagEnd::DefinitionList => {},
+            pulldown_cmark::TagEnd::DefinitionListTitle => {},
+            pulldown_cmark::TagEnd::DefinitionListDefinition => {},
         }
     }
 
@@ -637,7 +643,7 @@ impl CommonMarkViewerInternal {
         options: &CommonMarkOptions,
         max_width: f32,
     ) {
-        if let Some(block) = self.fenced_code_block.take() {
+        if let Some(mut block) = self.fenced_code_block.take() {
             block.end(ui, cache, options, max_width);
             self.text_style.code = false;
             self.line.try_insert_end(ui);
