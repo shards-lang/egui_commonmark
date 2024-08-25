@@ -2,12 +2,17 @@
 
 ## Unreleased
 
-## Changed
+### Added
 
+- Definition lists
+
+### Changed
+
+- Updated pulldown-cmark to 0.12
 - Newlines are no longer inserted before/after markdown ([#56](https://github.com/lampsitter/egui_commonmark/pull/56))
     > For the old behaviour you can call `ui.label("");` before and and after
 
-## Removed
+### Removed
 
 - Experimental comrak backend ([#57](https://github.com/lampsitter/egui_commonmark/pull/57))
 - Deprecated method `syntax_theme`

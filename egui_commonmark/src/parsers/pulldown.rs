@@ -58,6 +58,12 @@ impl Newline {
     }
 }
 
+#[derive(Default)]
+struct DefinitionList {
+    is_first_item: bool,
+    is_def_list_def: bool,
+}
+
 pub struct CommonMarkViewerInternal {
     source_id: Id,
     curr_table: usize,
@@ -68,6 +74,7 @@ pub struct CommonMarkViewerInternal {
     line: Newline,
     fenced_code_block: Option<FencedCodeBlock>,
     is_list_item: bool,
+    def_list: DefinitionList,
     is_table: bool,
     is_blockquote: bool,
     checkbox_events: Vec<CheckboxClickEvent>,
@@ -89,6 +96,7 @@ impl CommonMarkViewerInternal {
             image: None,
             line: Newline::default(),
             is_list_item: false,
+            def_list: Default::default(),
             fenced_code_block: None,
             is_table: false,
             is_blockquote: false,
@@ -265,9 +273,71 @@ impl CommonMarkViewerInternal {
     ) {
         self.event(ui, event, src_span, cache, options, max_width);
 
+        self.def_list_def_wrapping(events, max_width, cache, options, ui);
         self.item_list_wrapping(events, max_width, cache, options, ui);
         self.table(events, cache, options, ui, max_width);
         self.blockquote(events, max_width, cache, options, ui);
+    }
+
+    fn def_list_def_wrapping<'e>(
+        &mut self,
+        events: &mut Peekable<impl Iterator<Item = EventIteratorItem<'e>>>,
+        max_width: f32,
+        cache: &mut CommonMarkCache,
+        options: &CommonMarkOptions,
+        ui: &mut Ui,
+    ) {
+        if self.def_list.is_def_list_def {
+            self.def_list.is_def_list_def = false;
+
+            let item_events = delayed_events(events, |tag| {
+                matches!(tag, pulldown_cmark::TagEnd::DefinitionListDefinition)
+            });
+
+            let mut events_iter = item_events.into_iter().enumerate().peekable();
+
+            self.line.try_insert_start(ui);
+
+            // Proccess a single event separately so that we do not insert spaces where we do not
+            // want them
+            self.line.should_start_newline = false;
+            if let Some((_, (e, src_span))) = events_iter.next() {
+                self.process_event(ui, &mut events_iter, e, src_span, cache, options, max_width);
+            }
+
+            ui.label(" ".repeat(options.indentation_spaces));
+            self.line.should_start_newline = true;
+            self.line.should_end_newline = false;
+            // Required to ensure that the content is aligned with the identation
+            ui.horizontal_wrapped(|ui| {
+                while let Some((_, (e, src_span))) = events_iter.next() {
+                    self.process_event(
+                        ui,
+                        &mut events_iter,
+                        e,
+                        src_span,
+                        cache,
+                        options,
+                        max_width,
+                    );
+                }
+            });
+            self.line.should_end_newline = true;
+
+            // Only end the definition items line if it is not the last element in the list
+            if !matches!(
+                events.peek(),
+                Some((
+                    _,
+                    (
+                        pulldown_cmark::Event::End(pulldown_cmark::TagEnd::DefinitionList),
+                        _
+                    )
+                ))
+            ) {
+                self.line.try_insert_end(ui);
+            }
+        }
     }
 
     fn item_list_wrapping<'e>(
@@ -311,7 +381,9 @@ impl CommonMarkViewerInternal {
         ui: &mut Ui,
     ) {
         if self.is_blockquote {
-            let mut collected_events = delayed_events(events, pulldown_cmark::TagEnd::BlockQuote(None));
+            let mut collected_events = delayed_events(events, |tag| {
+                matches!(tag, pulldown_cmark::TagEnd::BlockQuote(_))
+            });
             self.line.try_insert_start(ui);
 
             // Currently the blockquotes are made in such a way that they need a newline at the end
@@ -564,9 +636,23 @@ impl CommonMarkViewerInternal {
             }
             pulldown_cmark::Tag::HtmlBlock => {}
             pulldown_cmark::Tag::MetadataBlock(_) => {}
-            pulldown_cmark::Tag::DefinitionList => {},
-            pulldown_cmark::Tag::DefinitionListTitle => {},
-            pulldown_cmark::Tag::DefinitionListDefinition => {},
+
+            pulldown_cmark::Tag::DefinitionList => {
+                self.line.try_insert_start(ui);
+                self.def_list.is_first_item = true;
+            }
+            pulldown_cmark::Tag::DefinitionListTitle => {
+                // we disable newline as the first title should not insert a newline
+                // as we have already done that upon the DefinitionList Tag
+                if !self.def_list.is_first_item {
+                    self.line.try_insert_start(ui)
+                } else {
+                    self.def_list.is_first_item = false;
+                }
+            }
+            pulldown_cmark::Tag::DefinitionListDefinition => {
+                self.def_list.is_def_list_def = true;
+            }
         }
     }
 
@@ -630,9 +716,10 @@ impl CommonMarkViewerInternal {
             }
             pulldown_cmark::TagEnd::HtmlBlock => {}
             pulldown_cmark::TagEnd::MetadataBlock(_) => {}
-            pulldown_cmark::TagEnd::DefinitionList => {},
-            pulldown_cmark::TagEnd::DefinitionListTitle => {},
-            pulldown_cmark::TagEnd::DefinitionListDefinition => {},
+
+            pulldown_cmark::TagEnd::DefinitionList => self.line.try_insert_end(ui),
+            pulldown_cmark::TagEnd::DefinitionListTitle
+            | pulldown_cmark::TagEnd::DefinitionListDefinition => {}
         }
     }
 
