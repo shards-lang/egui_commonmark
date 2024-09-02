@@ -571,7 +571,7 @@ impl CommonMarkViewerInternal {
                 self.is_blockquote = true;
             }
             pulldown_cmark::Tag::CodeBlock(c) => {
-                self.line.should_start_newline = true; // force this
+                newline(ui);
 
                 if let pulldown_cmark::CodeBlockKind::Fenced(lang) = c {
                     self.fenced_code_block = Some(crate::FencedCodeBlock {
@@ -594,6 +594,7 @@ impl CommonMarkViewerInternal {
                 } else {
                     self.list.start_level_without_number();
                 }
+                self.list.has_list_begun = false;
                 self.line.should_start_newline = false;
                 self.line.should_end_newline = false;
             }
